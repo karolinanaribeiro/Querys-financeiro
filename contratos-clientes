@@ -1,0 +1,13 @@
+select       
+	ra.id as "CONTRATO",
+    ra.reservation_id as "RESERVA",
+    to_char((ra.start_date at time zone 'utc' at time zone 'GMT +03:00')::date, 'DD/MM/YYYY') as "DATA RETIRADA",
+    to_char((ra.end_date at time zone 'utc' at time zone 'GMT +03:00')::date, 'DD/MM/YYYY') as "DATA DEVOLUCAO",
+    upper(c.name) as "NOME"
+from
+   	fleet_management.rent_agreement ra
+inner join public.customer c on
+    c.id = ra.customer_id
+where
+ ((ra.end_date at time zone 'utc' at time zone 'GMT +03:00')::date between '2023-01-01' and '2026-01-31')
+               
