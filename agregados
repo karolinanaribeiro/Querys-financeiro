@@ -1,0 +1,69 @@
+select
+	ra.origin_store_id as "LOJA",
+	src.code "ORIGEM",
+	ra.cdp_code "CDP",
+	sum(rao.price::decimal(10, 2)) as "VALOR CONTRATO",
+	0 as "VALOR RESERVA",
+	case
+		when r.coupons is not null
+		and r.coupons <> '' then coalesce(r.coupons::JSON->0->>'code',
+		'')
+		else ''
+	end as "CUPOM",
+	ra.id as "COD CONTRATO"
+from
+	fleet_management.rent_agreement_optional rao
+inner join fleet_management.rent_agreement ra on
+	(rao.rent_agreement_id = ra.id)
+inner join "source" src on
+	src.id = ra.source_id
+inner join fleet_management.reservation r on
+	r.id = ra.reservation_id
+where
+	(ra.end_date at time zone 'utc' at time zone 'GMT +03:00')::date between '2025-11-01' and '2025-11-30'
+	and included_in = 'START_CONTRACT'
+	and rao.price > 0
+	and ra.status not in ('CANCELED')
+	and ra.origin_store_id <> ('REC22')
+group by
+	ra.origin_store_id,
+	src.code,
+	ra.cdp_code,
+	r.coupons,
+	ra.id,
+	r.id
+union
+select
+	ra.origin_store_id as "LOJA",
+	src.code "ORIGEM",
+	r.cdp_code "CDP",
+	0 as "VALOR CONTRATO",
+	sum(ro.price::decimal(10, 2)) as "VALOR RESERVA",
+	case
+		when r.coupons is not null
+		and r.coupons <> '' then coalesce(r.coupons::JSON->0->>'code',
+		'')
+		else ''
+	end as "CUPOM",
+	ra.id as "COD CONTRATO"
+from
+	fleet_management.reservation_optional ro
+inner join fleet_management.reservation r on
+	(ro.reservation_id = r.id)
+inner join "source" src on
+	src.id = r.source_id
+inner join fleet_management.rent_agreement ra on
+	r.id = ra.reservation_id
+where
+	(ra.end_date at time zone 'utc' at time zone 'GMT +03:00')::date between '2025-11-01' and '2025-11-30'
+group by
+	ra.origin_store_id,
+	src.code,
+	r.cdp_code,
+	r.coupons,
+	ra.id,
+	r.id
+order by
+	1,
+	2,
+	3
