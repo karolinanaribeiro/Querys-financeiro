@@ -1,0 +1,11 @@
+select case 
+			when ra.extra_km_price = 'NaN' then 0
+			else ra.extra_km_price::numeric 
+		end as "KM EXTRA",
+		to_char((ra.end_date at time zone 'utc' at time zone 'GMT +03:00')::date, 'YYYY-MM-DD'):: date as "Data devolucao",
+		ra.id AS "CONTRATO",
+		ra.origin_store_id as "LOJA"
+from fleet_management.rent_agreement ra 
+where (ra.end_date at time zone 'utc' at time zone 'GMT +03:00')::date between '2025-12-01' and '2025-12-31'
+and ra.origin_store_id <> 'REC22'
+and ra.status <> 'CANCELED'
