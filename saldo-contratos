@@ -1,0 +1,53 @@
+select 
+ra.id as "CONTRATO",
+ra.origin_store_id AS "LOJA ORIGEM",
+ra.destination_store_id AS "LOJA DESTINO",
+ra.cdp_code as "CDP",
+TO_CHAR((ra.start_date AT TIME ZONE 'UTC' AT TIME ZONE 'GMT+3')::date, 'DD/MM/YYYY') AS "DATA RETIRADA",
+TO_CHAR((ra.end_date AT TIME ZONE 'UTC' AT TIME ZONE 'GMT+3')::date, 'DD/MM/YYYY') AS "DATA DEVOLUCAO",
+TO_CHAR((rap.date AT TIME ZONE 'UTC' AT TIME ZONE 'GMT+3')::date, 'DD/MM/YYYY') AS "DATA PAGAMENTO",
+rap."type" as "TIPO PAGAMENTO",
+ROUND (rap.value :: numeric,2) AS "VALOR",
+rap.pre_paid as "PRE PAGO?"
+from fleet_management.rent_agreement ra 
+inner join fleet_management.rent_agreement_payment rap 
+on rap.rent_agreement_id = ra.id
+where
+((ra.end_date AT TIME ZONE 'UTC') AT TIME ZONE 'GMT+3')::date 
+        BETWEEN DATE '2025-11-01' AND DATE '2025-11-30'
+ 	and ra.status not in ('CANCELED')
+	and ra.origin_store_id <> ('REC22')
+
+
+
+	select
+	ra.id,
+	ra.origin_store_id,
+	ra.destination_store_id,
+	s.code,
+	ra.cdp_code,
+	to_char((ra.start_date at time zone 'utc' at time zone 'GMT +03:00')::date, 'DD/MM/YYYY') as "start_date",
+	to_char((ra.end_date at time zone 'utc' at time zone 'GMT +03:00')::date, 'DD/MM/YYYY') as "end_date",
+	to_char((rap."date" at time zone 'utc' at time zone 'GMT +03:00')::date, 'DD/MM/YYYY') as "rap_date",
+	rap."type",
+	round(rap.value::numeric, 2),
+	r.is_prepayment
+from
+	fleet_management.rent_agreement_payment rap
+inner join fleet_management.rent_agreement ra on
+	rap.rent_agreement_id = ra.id
+inner join public."source" s on
+	ra.source_id = s.id
+inner join fleet_management.reservation r on ra.reservation_id = r.id
+where
+	(ra.start_date at time zone 'utc' at time zone 'GMT +03:00')::date <= '2024-08-31'::date -- alterar para a DATA do ultimo dia do mês ex : '2025-01-31'
+	and (rap."date" at time zone 'utc' at time zone 'GMT +03:00')::date <= '2024-08-31'::date -- alterar para a DATA do ultimo dia do mês ex : '2025-01-31'
+	and (ra.end_date at time zone 'utc' at time zone 'GMT +03:00')::date >= '2024-09-01'::date -- alterar pelo primeiro dia do mês seguinte ex : '2025-02-01'
+	and rap."type" <> 'profit'
+	and rap.bail is false
+	and rap.pre_paid is false
+	and ra.status <> 'CANCELED'
+	and ra.origin_store_id <> 'REC22'
+order by
+	1
+	
