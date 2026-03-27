@@ -1,0 +1,68 @@
+
+select
+    ra.reservation_id as "RESERVA",
+    r.vehicle_class_id as "CATEGORIA RESERVA",
+    ra.id as "CONTRATO",
+    case
+        when ra.rented_vehicle_class_id is not null then ra.rented_vehicle_class_id
+        else ra.vehicle_class_id
+    end as "CATEGORIA CONTRATO",
+    s.code as "ORIGEM",
+    (ra.end_date at time zone 'utc' at time zone 'GMT +03:00')::date as "DATE IN",
+    (ra.start_date at time zone 'utc' at time zone 'GMT +03:00')::date as "DATE OUT",
+    ra.days as "DIÁRIAS",
+    ra.status as "STATUS",
+    round(ra.total_price::numeric, 2) as "VALOR",
+    sum(round(rao.price::numeric, 2)) as "EXTRAS",
+    (round(ra.total_price::numeric, 2) - sum(round(rao.price::numeric, 2))) as "DIFERENÇA",
+    round(ra.discount_price::numeric, 2) as "DESCONTO",
+    ge.name as "TIPO NEGOCIAÇAO",
+    TO_CHAR((ra.start_date at time zone 'utc' at time zone 'GMT +03:00')::time, 'HH24MI') as "HORA_RETIRADA",
+	TO_CHAR((ra.end_date at time zone 'utc' at time zone 'GMT +03:00')::time, 'HH24MI') as "HORA_DEVOLUCAO",
+	ra.origin_store_id,
+	coalesce(case
+		when r.is_renewal is true then 'SIM'
+		else 'NÃO'
+	end,
+	'') as "RENOVACAO",
+	 r.created_user_login AS "LOGIN"
+from
+    fleet_management.rent_agreement_optional rao
+inner join fleet_management.reservation r on
+    (rao.rent_agreement_id = r.rent_agreement_id)
+inner join fleet_management.rent_agreement ra on
+    (rao.rent_agreement_id = ra.id)
+inner join public.cdp c on
+    (ra.cdp_code = c.code)
+inner join public."source" s on
+    (s.id = ra.source_id)
+inner join fleet_management.general_entity ge on
+    (s.type = ge.id)
+where
+    ((ra.end_date  at time zone 'utc' at time zone 'GMT +03:00')::date >= '2025-01-01') and ((ra.start_date  at time zone 'utc' at time zone 'GMT +03:00')::date <= '2025-12-31')
+   	 --ra.reservation_id <> 'R0104298-20' 
+	 and 
+	 ra.status <> 'CANCELED'
+	 --and ge."name" not in ('Mensal Flex', 'Aplicativo', '0KM', 'OTA','Própria')
+	--and s.code not in ('TRADF','APP', 'FLEX','FLEX2', '0KM', 'MOBF', 'LAYF', 'VIPCF','ANGMF', 'DISM', 'MATRI', 'ECNMF', 'ALVAF')
+    --and s.code in ( 'EHTL', 'FLY', 'EUPLU', 'CVC', 'ESFER', 'COP', 'BRSEG', 'MCLUB', 'ORINT', 'FCOPE', 'FRT', 'TRADE', 'LUCKS', 'GSTVL', 'LIVE', 'RHMAT', 'CCV', 'CRESS', 'FLORC', 'IMPER', 'DAHER', 'NEQ', 'OURO', 'REDEP', 'MOOBI', 'MOBIL', 'CNTAR', 'VOOT', 'IBIS', 'COTTA', 'COMMA', 'MILTO', 'TDCON', 'SBV', 'ALPHA', 'MARTI', 'TRIO', 'COMAR', 'BMS', 'CJM', 'MAKER', 'IAC', 'FSCCT', 'KFA', 'UNO', 'CTG', 'TECRI', 'BRASA', 'ADVAN', 'RTT', 'MONTR', 'RBC', 'SGENG', 'NORDE', 'BOTOC', 'JAS', 'ENGTR', 'ELEMW', 'UVALE', 'ALV', 'ACTRA', 'BCF', 'AMTEC', 'SANY', 'TRIAD', 'CLUDE', 'KRATT', 'WBLOG', 'PONTL', 'BCB', 'LINC', 'VRSOF', 'VILLA', 'TECQ', 'BASET', 'FLOR')
+group by 
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    14, 15, 16,17,18, 
+    r.created_user_login
+order by
+    3,
+    2,
+    1,
+    4,
+    5,
+    6,
+    8
