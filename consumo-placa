@@ -1,0 +1,19 @@
+SELECT
+    DISTINCT ra.id AS "CONTRATO",
+    ra.origin_store_id AS "LOJA",
+    ra.cdp_code AS "CDP",
+    src.code AS "ORIGEM",
+    v.license_plate AS "Placa",
+    ((ff.transaction_value::DECIMAL(10, 2) * -1))::DECIMAL(10, 2) AS "VALOR",
+    TO_CHAR((ra.end_date AT TIME ZONE 'UTC' AT TIME ZONE 'GMT+03:00')::DATE, 'YYYY-MM-DD')::DATE AS "Data devolucao"
+FROM fleet_management.rent_agreement ra
+INNER JOIN fleet_management.free_flow ff 
+    ON ra.id = ff.rent_agreement
+INNER JOIN "source" src 
+    ON src.id = ra.source_id
+INNER JOIN fleet_management.allocation_vehicle_rent_agreement avra
+    ON avra.rent_agreement_id = ra.id
+INNER JOIN fleet_management.vehicle v 
+    ON v.code = avra.vehicle_code
+WHERE (ra.end_date AT TIME ZONE 'UTC' AT TIME ZONE 'GMT+03:00')::DATE 
+      BETWEEN '2025-01-01' AND '2025-12-31';
