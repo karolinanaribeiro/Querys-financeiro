@@ -1,0 +1,35 @@
+select
+ra.origin_store_id as "Loja" ,
+ra.id as "Contrato" ,
+ra.reservation_id as "Reserva",
+TO_CHAR((rap.created_date at time zone 'utc' at time zone 'GMT +03:00')::date, 'DD/MM/YYYY') as "data de criação",
+replace(replace(replace(replace((((sum(rap.value::decimal(10, 2))::decimal(10, 2))::decimal(10, 2))::money)::text, '$', ''), ',', '|'), '.', ','), '|', '.') as "Total Cash",
+rap."type" as "Tipo",
+rap.store_money as "Loja Pagamento",
+s2.code as "Origem"
+from
+fleet_management.rent_agreement ra
+inner join fleet_management.rent_agreement_payment rap on
+ra.id = rap.rent_agreement_id
+inner join public.store s on
+s.id = ra.origin_store_id
+inner join public."source" s2 on
+s2.id = ra.source_id 
+--inner join auth.user_stores us on
+--us.store_id = s.id
+where
+(rap."type" = 'money' or rap."type" = 'pix')
+and ((rap.created_date at time zone 'utc' at time zone 'GMT +03:00')::date between '2024-09-01' and '2024-09-10') and
+ra.status <> 'CANCELED'
+--adicionar filtro do status do contrato antes de enviar
+--and us.user_login = $3
+group by
+ra.origin_store_id ,
+ra.id ,
+ra.reservation_id ,
+rap.created_date ,
+rap."type",
+rap.store_money,
+s2.code
+order by
+rap.created_date
