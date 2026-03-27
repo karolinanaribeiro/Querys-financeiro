@@ -1,0 +1,50 @@
+select
+ 'CORAL' "SISTEMA",
+ coalesce(r.coupons::JSON->0->>'code', '') "CUPOM",
+ '-' "RESERVA",
+ case
+  when rao.optional_code = 'DMG' then '4750'
+  when rao.optional_code in ('SWSH', 'AWSH', 'LWSH') then '4752'
+  else '4000'
+ end "CONTA",
+ ra.origin_store_id as "LOJA",
+ src.code "ORIGEM",
+ ra.cdp_code "CDP",
+ ra.id AS "CONTRATO",
+ ((round(sum(price::decimal(10, 2)),2)*-1)::decimal(10,2) + case when rao.optional_code not in ('SWSH', 'AWSH', 'LWSH', 'DMG') then ra.extra_km_price*-1 else 0 end) as "VALOR",
+ --(sum(price::decimal(10, 2))*-1)::decimal(10,2) as "VALOR",
+ to_char((ra.start_date at time zone 'utc' at time zone 'GMT +03:00')::date, 'DD/MM/YYYY') as "RETIRADA",
+    to_char((ra.end_date at time zone 'utc' at time zone 'GMT +03:00')::date, 'YYYY-MM-DD'):: date as "Data devolucao",
+    ra.extra_km_price as "KM EXTRA",
+    rao.optional_code as "OPCIONAL"
+from
+ fleet_management.rent_agreement_optional rao
+inner join fleet_management.rent_agreement ra on
+ (rao.rent_agreement_id = ra.id)
+inner join "source" src on
+ src.id = ra.source_id
+inner join fleet_management.reservation r on
+ r.id = ra.reservation_id
+where
+ (ra.end_date at time zone 'utc' at time zone 'GMT +03:00')::date between '2025-11-01' and '2025-11-30'
+ and rao.price > 0
+ and ra.status <> 'CANCELED'
+ and ra.origin_store_id <> 'REC22'
+ and rao.optional_code in ('DMG', 'LWSH', 'MISC', 'SWSH', 'AWSH', 'LOP', 'ADMG', 'FUEL', 'KMG', 'RSA', 'TLOSS', 'ACA', 'BUSCA', 'TGP', 'PEN') --adicionados os códigos tgp, pen
+group by
+ 1,
+ 2,
+ 3,
+ 4,
+ 5,
+ 6,
+ 7,
+ 8,
+ 10,
+ rao.optional_code
+order by
+ 3,
+ 4,
+ 5,
+ 6,
+ 7
