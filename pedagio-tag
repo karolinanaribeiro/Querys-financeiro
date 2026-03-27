@@ -1,0 +1,38 @@
+
+select
+    ra.origin_store_id as "LOJA",
+    rao.optional_code as "OPCIONAL",
+    ra.id AS "CONTRATO",
+    (sum(price::decimal(10, 2))*-1)::decimal(10,2) as "VALOR",
+    to_char((ra.end_date at time zone 'utc' at time zone 'GMT +03:00')::date, 'YYYY-MM-DD')::date as "Data devolucao",
+    (
+        select
+            v.license_plate
+        from
+            fleet_management.allocation_vehicle_rent_agreement avra
+        inner join fleet_management.vehicle v on
+            v.code = avra.vehicle_code
+        where
+            avra.rent_agreement_id = ra.id
+        order by
+            avra.start_date desc
+        limit 1
+    ) as "PLACA"
+from
+    fleet_management.rent_agreement_optional rao
+inner join fleet_management.rent_agreement ra on
+    rao.rent_agreement_id = ra.id
+inner join "source" src on
+    src.id = ra.source_id
+inner join fleet_management.reservation r on
+    r.id = ra.reservation_id
+where
+    (ra.end_date at time zone 'utc' at time zone 'GMT +03:00')::date between '2025-01-01' and '2025-12-31'
+    and rao.price > 0
+    and ra.status <> 'CANCELED'
+    and ra.origin_store_id <> 'REC22'
+    and rao.optional_code in ('TAG', 'TGP', 'TOLL')
+group by
+    1,2,3,5
+order by
+    3,4;
