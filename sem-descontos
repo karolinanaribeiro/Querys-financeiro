@@ -1,0 +1,129 @@
+WITH agregados AS (
+
+    SELECT
+
+        reservation_id,
+
+        ROUND(SUM(price)::numeric, 2) AS valor_agregado
+
+    FROM fleet_management.reservation_optional
+
+    GROUP BY reservation_id
+
+)
+
+SELECT
+
+    r.vehicle_class_id AS "CLASSE",
+
+    r.id AS "RESERVA",
+
+    ra.id AS "CONTRATO",
+
+    r.rental_rate_class_data::json->>'name' AS "TARIFA",
+
+    r.cdp_code AS "CDP",
+
+    r.origin_store_id AS "LOJA",
+
+    TO_CHAR(
+
+        (r.start_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date,
+
+        'DD/MM/YYYY'
+
+    ) AS "DATA RETIRADA",
+
+    TO_CHAR(
+
+        (r.end_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date,
+
+        'DD/MM/YYYY'
+
+    ) AS "DATA DEVOLUCAO",
+
+    TO_CHAR(
+
+        (r.created_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date,
+
+        'DD/MM/YYYY'
+
+    ) AS "DATA CRIACAO",
+
+    s.code AS "ORIGEM",
+
+    r.status AS "STATUS",
+
+    r.days AS "DIARIAS",
+
+    r.daily_price as "VALOR_DIARIA",
+
+    ROUND(r.total_price::numeric, 2) AS "VALOR_RESERVA",
+
+    ROUND(
+
+        (r.total_price / r.days)::numeric,
+
+        2
+
+    ) AS "TICKET_MEDIO_RESERVA",
+
+    r.quotation_value AS "COTACAO_DIA",
+
+    ROUND(r.dropoff_price::numeric, 2) AS "VALOR_DROP",
+
+    COALESCE(a.valor_agregado, 0) AS "VALOR_AGREGADO",
+
+    ROUND(COALESCE(r.discount_price, 0)::numeric, 2) AS "VALOR_DESCONTO",
+
+    ROUND(
+
+        CASE
+
+            WHEN COALESCE(r.discount_price, 0) = 0 THEN r.daily_price
+
+            ELSE (r.daily_price * r.days - r.discount_price) / r.days
+
+        END::numeric,
+
+        2
+
+    ) AS "VALOR_DIARIA_SEM_DESCONTOS",
+
+    ROUND(
+
+        CASE
+
+            WHEN COALESCE(r.discount_price, 0) = 0 THEN r.daily_price * r.days
+
+            ELSE (r.daily_price * r.days) - r.discount_price
+
+        END::numeric,
+
+        2
+
+    ) AS "VALOR_RESERVA_SEM_DESCONTOS_E_TAXAS"
+
+FROM fleet_management.reservation r
+
+INNER JOIN public."source" s
+
+    ON r.source_id = s.id
+
+INNER JOIN fleet_management.general_entity ge
+
+    ON s.type = ge.id
+
+LEFT JOIN fleet_management.rent_agreement ra
+
+    ON r.id = ra.reservation_id
+
+LEFT JOIN agregados a
+
+    ON r.id = a.reservation_id
+
+WHERE r.start_date >= '2026-01-01'
+
+  AND r.origin_store_id <> 'REC22'
+
+ 
