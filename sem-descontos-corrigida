@@ -1,0 +1,49 @@
+WITH agregados AS (
+    SELECT
+        reservation_id,
+        ROUND(SUM(price)::numeric, 2) AS valor_agregado
+    FROM fleet_management.reservation_optional
+    GROUP BY reservation_id
+)
+SELECT
+    r.vehicle_class_id AS "CLASSE",
+    r.id AS "RESERVA",
+    ra.id AS "CONTRATO",
+    COALESCE(c.name,  r.name)  AS "NOME_CLIENTE",
+    COALESCE(c.email, r.email) AS "EMAIL_CLIENTE",
+    r.rental_rate_class_data::json->>'name' AS "TARIFA",
+    r.cdp_code AS "CDP",
+    r.origin_store_id AS "LOJA",
+    TO_CHAR((r.start_date   AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date, 'DD/MM/YYYY') AS "DATA RETIRADA",
+    TO_CHAR((r.end_date     AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date, 'DD/MM/YYYY') AS "DATA DEVOLUCAO",
+    TO_CHAR((r.created_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo')::date, 'DD/MM/YYYY') AS "DATA CRIACAO",
+    s.code AS "ORIGEM",
+    r.status AS "STATUS",
+    r.days AS "DIARIAS",
+    r.daily_price AS "VALOR_DIARIA",
+    ROUND(r.total_price::numeric, 2) AS "VALOR_RESERVA",
+    ROUND((r.total_price / NULLIF(r.days, 0))::numeric, 2) AS "TICKET_MEDIO_RESERVA",
+    r.quotation_value AS "COTACAO_DIA",
+    ROUND(r.dropoff_price::numeric, 2) AS "VALOR_DROP",
+    COALESCE(a.valor_agregado, 0) AS "VALOR_AGREGADO",
+    ROUND(COALESCE(r.discount_price, 0)::numeric, 2) AS "VALOR_DESCONTO",
+    ROUND(((r.daily_price * r.days - COALESCE(r.discount_price, 0)) / NULLIF(r.days, 0))::numeric, 2)
+        AS "VALOR_DIARIA_SEM_DESCONTOS",
+    ROUND((r.daily_price * r.days - COALESCE(r.discount_price, 0))::numeric, 2)
+        AS "VALOR_RESERVA_SEM_DESCONTOS_E_TAXAS"
+FROM fleet_management.reservation r
+LEFT JOIN public."source" s
+       ON s.id = r.source_id
+LEFT JOIN public.customer c
+       ON c.id = r.customer_id
+LEFT JOIN LATERAL (
+    SELECT ra.id
+    FROM fleet_management.rent_agreement ra
+    WHERE ra.reservation_id = r.id
+    ORDER BY ra.created_date DESC
+    LIMIT 1
+) ra ON true
+LEFT JOIN agregados a
+       ON a.reservation_id = r.id
+WHERE r.start_date >= '2026-01-01 03:00'   -- 01/01/2026 00h em Brasília (coluna gravada em UTC)
+  AND r.origin_store_id <> 'REC22';
